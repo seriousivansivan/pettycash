@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Bangkok
+      - PORT=3000
+      - SESSION_SECRET=change-me
+      - DB_FILE=/data/data.sqlite
+    volumes:
+      - app_data:/data           # persists SQLite
+      - app_uploads:/app/public/uploads
+      - app_logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  app_data:
+  app_uploads:
+  app_logs:
