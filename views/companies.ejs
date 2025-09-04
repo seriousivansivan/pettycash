@@ -1,0 +1,154 @@
+<%- include('partials/head', { title: 'Companies' , user }) %>
+
+    <div class="container-xxl py-3">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h3 class="m-0"><i class="bi bi-buildings me-2"></i>Companies</h3>
+            <button class="btn btn-primary" id="btnAddCompany">
+                <i class="bi bi-plus-circle me-1"></i> Add company
+            </button>
+        </div>
+
+        <% if (message) { %>
+            <div class="alert alert-success">
+                <%= message %>
+            </div>
+            <% } %>
+                <% if (error) { %>
+                    <div class="alert alert-danger">
+                        <%= error %>
+                    </div>
+                    <% } %>
+
+                        <div class="table-responsive bg-white shadow-sm rounded">
+                            <table id="companiesTable" class="table table-striped table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:70px">No.</th>
+                                        <th style="width:100px">Logo</th>
+                                        <th>Company</th>
+                                        <th style="width:140px" class="text-center">Vouchers</th>
+                                        <th style="width:220px">Created</th>
+                                        <th style="width:230px">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% rows.forEach((c, i)=> { %>
+                                        <tr>
+                                            <td>
+                                                <%= i+1 %>
+                                            </td>
+                                            <td>
+                                                <% if (c.logo_name) { %>
+                                                    <img src="/logos/<%= c.logo_name %>" class="img-fluid rounded"
+                                                        style="height:36px" alt="">
+                                                    <% } else { %>
+                                                        <span class="text-muted">No logo</span>
+                                                        <% } %>
+                                            </td>
+                                            <td class="fw-semibold">
+                                                <%= c.name %>
+                                            </td>
+                                            <td class="text-center"><span class="badge bg-secondary">
+                                                    <%= c.voucher_count %>
+                                                </span></td>
+                                            <td>
+                                                <%= new Date(c.created_at).toLocaleString() %>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary btn-edit"
+                                                    data-id="<%= c.id %>" data-name="<%- c.name %>"
+                                                    data-logo="<%= c.logo_name || '' %>">
+                                                    <i class="bi bi-pencil-square me-1"></i>Edit
+                                                </button>
+
+                                                <% if (c.voucher_count==0) { %>
+                                                    <form method="POST" action="/companies/<%= c.id %>/delete"
+                                                        class="d-inline" data-confirm="Delete company '<%= c.name %>'?">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="bi bi-trash me-1"></i>Delete
+                                                        </button>
+                                                    </form>
+                                                    <% } else { %>
+                                                        <button class="btn btn-sm btn-outline-secondary" disabled
+                                                            data-bs-toggle="tooltip"
+                                                            data-bs-title="Has vouchers; cannot delete">
+                                                            <i class="bi bi-lock"></i> Delete
+                                                        </button>
+                                                        <% } %>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+    </div>
+
+    <!-- Add company modal -->
+    <div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" method="POST" action="/companies" enctype="multipart/form-data" id="addForm">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Company name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Nana" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Logo (PNG, up to 10MB)</label>
+                        <input type="file" name="logo" class="form-control" accept="image/png" required>
+                    </div>
+                    <div class="text-center">
+                        <img id="addPreview" src="" alt="" class="img-fluid" style="max-height:120px; display:none;">
+                    </div>
+                    <div class="form-text">File will be saved to /logos as CompanyName.png</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit company modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" method="POST" enctype="multipart/form-data" id="editForm">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Edit company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Company name</label>
+                        <input type="text" name="name" class="form-control" id="editName" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Replace logo (PNG, up to 10MB) — optional</label>
+                        <input type="file" name="logo" class="form-control" accept="image/png" id="editLogo">
+                    </div>
+                    <div class="text-center">
+                        <img id="editPreview" src="" alt="" class="img-fluid border rounded" style="max-height:120px;">
+                    </div>
+                    <div class="form-text">If you rename the company, the logo file will also be renamed.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <%- include('partials/footer') %>
+
+        <script> const addModal = new bootstrap.Modal(document.getElementById('addModal')); const editModal = new bootstrap.Modal(document.getElementById('editModal')); document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el)); document.getElementById('btnAddCompany')?.addEventListener('click', () => { const f = document.getElementById('addForm'); f.reset(); const img = document.getElementById('addPreview'); img.src = ''; img.style.display = 'none'; addModal.show(); }); function validatePngInput(input) { const file = input.files && input.files[0]; if (!file) return true; if (file.type !== 'image/png') { Swal.fire('PNG required', 'Please choose a .png file', 'warning'); input.value = ''; return false; } if (file.size > 10 * 1024 * 1024) { Swal.fire('File too large', 'Max 10MB', 'warning'); input.value = ''; return false; } return true; } function showPreview(input, imgEl) { const file = input.files && input.files[0]; if (!file) { imgEl.src = ''; imgEl.style.display = 'none'; return; } const reader = new FileReader(); reader.onload = () => { imgEl.src = reader.result; imgEl.style.display = 'block'; }; reader.readAsDataURL(file); } document.querySelector('#addForm input[name="logo"]').addEventListener('change', function () { if (validatePngInput(this)) showPreview(this, document.getElementById('addPreview')); }); document.querySelector('#editLogo').addEventListener('change', function () { if (validatePngInput(this)) showPreview(this, document.getElementById('editPreview')); });
+            // Event delegation: handle Edit buttons inside the table (works after DataTables re-renders) 
+            // 
+            const tableEl = document.getElementById('companiesTable'); tableEl.addEventListener('click', (e) => { const btn = e.target.closest('.btn-edit'); if (!btn || !tableEl.contains(btn)) return; const id = btn.dataset.id; const name = btn.dataset.name || ''; const logo = btn.dataset.logo || ''; const form = document.getElementById('editForm'); form.action = `/companies/${id}/edit`; document.getElementById('editName').value = name; const img = document.getElementById('editPreview'); if (logo) { img.src = `/logos/${logo}`; img.style.display = 'block'; } else { img.src = ''; img.style.display = 'none'; } document.getElementById('editLogo').value = ''; editModal.show(); });
+            // Event delegation for delete-confirm forms inside the table 
+            // 
+            document.addEventListener('submit', async (e) => { const f = e.target; if (!f.matches('form[data-confirm]')) return; e.preventDefault(); const msg = f.getAttribute('data-confirm') || 'Are you sure?'; const ok = await Swal.fire({ title: 'Please confirm', text: msg, icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545' }).then(r => r.isConfirmed); if (ok) f.submit(); }); if (window.simpleDatatables) { new simpleDatatables.DataTable('#companiesTable', { perPage: 25, perPageSelect: [10, 25, 50, 100], labels: { placeholder: 'Search...' }, columns: [{ select: 0, sortable: true, searchable: false }, { select: 1, sortable: false, searchable: false }, { select: -1, sortable: false, searchable: false }] }); } </script>

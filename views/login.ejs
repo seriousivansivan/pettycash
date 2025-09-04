@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Petty Cash</title>
+
+  <!-- Bootswatch theme (Lux) + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/lux/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(1200px 600px at 80% -100px, rgba(13,110,253,.12), transparent 60%),
+        radial-gradient(800px 500px at -200px 80%, rgba(32,201,151,.10), transparent 60%),
+        #f8fafc;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; letter-spacing: .3px;
+    }
+    .brand i { font-size: 28px; color: #0d6efd; }
+    .caps-hint { font-size: 12px; color: #e35d6a; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card login-card">
+    <div class="card-body p-4 p-md-5">
+      <div class="brand mb-3">
+        <img src="/logos/Panthera.png" alt="" width="50px">
+        <span>Petty Cash</span>
+      </div>
+      <h4 class="mb-3">Sign in</h4>
+
+      <% if (typeof message !== 'undefined' && message) { %>
+        <div class="alert alert-success"><%= message %></div>
+      <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="/login" id="loginForm" novalidate>
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input class="form-control" type="text" name="username" placeholder="e.g. ivan" required autofocus autocomplete="username">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Password</label>
+          <div class="input-group">
+            <input class="form-control" type="password" name="password" id="pwd" required autocomplete="current-password">
+            <button class="btn btn-outline-secondary" type="button" id="togglePwd" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <div id="capsHint" class="caps-hint mt-1">Caps Lock is ON</div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between mt-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="remember" disabled>
+            <label class="form-check-label" for="remember">Remember me</label>
+          </div>
+          <button class="btn btn-primary" type="submit" id="submitBtn">
+            <span class="me-1"><i class="bi bi-box-arrow-in-right"></i></span> Sign in
+          </button>
+        </div>
+
+        <div class="form-text mt-3">Forgot your password? Please contact <a href="https://itservice.panthera.dyndns.biz/en/customer/create-ticket/">IT administrator</a>.</div>
+      </form>
+    </div>
+    <div class="card-footer text-center small text-muted">
+      © <%= new Date().getFullYear() %> Petty Cash
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const pwd = document.getElementById('pwd');
+    const toggle = document.getElementById('togglePwd');
+    const hint = document.getElementById('capsHint');
+    const form = document.getElementById('loginForm');
+    const btn = document.getElementById('submitBtn');
+
+    toggle.addEventListener('click', () => {
+      const icon = toggle.querySelector('i');
+      if (pwd.type === 'password') {
+        pwd.type = 'text';
+        icon.classList.replace('bi-eye', 'bi-eye-slash');
+      } else {
+        pwd.type = 'password';
+        icon.classList.replace('bi-eye-slash', 'bi-eye');
+      }
+      pwd.focus();
+    });
+
+    ['keydown', 'keyup'].forEach(evt => {
+      pwd.addEventListener(evt, (e) => {
+        const on = e.getModifierState && e.getModifierState('CapsLock');
+        hint.style.display = on ? 'block' : 'none';
+      });
+    });
+
+    form.addEventListener('submit', () => {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing in...';
+    });
+  </script>
+</body>
+</html>

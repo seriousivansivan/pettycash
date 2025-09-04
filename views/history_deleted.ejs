@@ -1,0 +1,139 @@
+<%- include('partials/head', { title: 'Deleted Vouchers (Trash)', user }) %>
+
+<div class="container-xxl py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="m-0"><i class="bi bi-trash me-2"></i>Deleted Vouchers (Trash)</h3>
+    <span class="text-muted">Logged in as <strong><%= user.name %></strong> (admin)</span>
+  </div>
+
+  <form method="POST" action="/vouchers/bulk-restore" id="bulkForm" class="mb-3">
+    <div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-2">
+      <div class="form-check me-2">
+        <input class="form-check-input" type="checkbox" id="selectAll">
+        <label class="form-check-label" for="selectAll">Select All</label>
+      </div>
+      <button type="submit" class="btn btn-success" id="restoreBtn">
+        <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Selected
+      </button>
+      <button type="submit"
+              class="btn btn-danger"
+              id="hardBtn"
+              formaction="/vouchers/bulk-hard-delete"
+              formmethod="POST">
+        <i class="bi bi-x-octagon me-1"></i> Delete Permanently Selected
+      </button>
+    </div>
+
+    <div class="table-responsive bg-white shadow-sm rounded">
+      <table id="trashTable" class="table table-striped table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:60px">No.</th>
+            <th style="width:46px"><input type="checkbox" id="selectAllTop"></th>
+            <th>Date</th>
+            <th>Company</th>
+            <th>Pay To</th>
+            <th class="text-end">Total</th>
+            <th>Created By</th>
+            <th>Deleted At</th>
+            <th>PDF</th>
+            <th style="width:220px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!rows || rows.length === 0) { %>
+            <tr><td colspan="10" class="text-center py-4 text-muted">Trash is empty</td></tr>
+          <% } else { %>
+            <% rows.forEach((r, idx) => { %>
+              <tr>
+                <td><%= idx + 1 %></td>
+                <td><input type="checkbox" name="ids" value="<%= r.id %>" class="form-check-input rowChk"></td>
+                <td><%= r.date %></td>
+                <td><%= r.company %></td>
+                <td><%= r.pay_to %></td>
+                <td class="text-end"><%= Number(r.total).toFixed(2) %></td>
+                <td><%= r.created_by_name || '' %></td>
+                <td><%= r.created_at_th %></td>
+                <td>
+                  <a class="btn btn-sm btn-outline-primary" href="/voucher/<%= r.id %>/pdf">
+                    <i class="bi bi-download"></i> Download
+                  </a>
+                </td>
+                <td>
+                  <form class="d-inline" method="POST" action="/voucher/<%= r.id %>/restore" data-confirm="Restore this voucher?">
+                    <button type="submit" class="btn btn-sm btn-outline-success">
+                      <i class="bi bi-arrow-counterclockwise"></i> Restore
+                    </button>
+                  </form>
+                  <form class="d-inline" method="POST" action="/voucher/<%= r.id %>/hard-delete" data-confirm="Permanently delete this voucher? This cannot be undone.">
+                    <button type="submit" class="btn btn-sm btn-danger">
+                      <i class="bi bi-x-octagon"></i> Hard delete
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </form>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+  const all1 = document.getElementById('selectAll');
+  const all2 = document.getElementById('selectAllTop');
+  const rowChecks = () => Array.from(document.querySelectorAll('.rowChk'));
+  function setAll(checked){ rowChecks().forEach(cb => cb.checked = checked); }
+  all1.addEventListener('change', e => { setAll(e.target.checked); all2.checked = e.target.checked; });
+  all2.addEventListener('change', e => { setAll(e.target.checked); all1.checked = e.target.checked; });
+
+  if (window.simpleDatatables) {
+    new simpleDatatables.DataTable('#trashTable', {
+      perPage: 25,
+      perPageSelect: [10,25,50,100],
+      labels: { placeholder: 'Search...' },
+      columns: [
+        { select: 0, sortable: true,  searchable: false },
+        { select: 1, sortable: false, searchable: false },
+        { select: -1, sortable: false, searchable: false }
+      ]
+    });
+  }
+
+  async function confirmAction(title, text, danger) {
+    const res = await Swal.fire({
+      title, text, icon: 'warning', showCancelButton: true,
+      confirmButtonText: 'Yes, continue',
+      confirmButtonColor: danger ? '#dc3545' : '#0d6efd'
+    });
+    return res.isConfirmed;
+  }
+
+  const restoreBtn = document.getElementById('restoreBtn');
+  const hardBtn    = document.getElementById('hardBtn');
+
+  restoreBtn?.addEventListener('click', async (e) => {
+    if (!(await confirmAction('Restore selected?', 'They will move back to Histories.', false))) e.preventDefault();
+  });
+  hardBtn?.addEventListener('click', async (e) => {
+    if (!(await confirmAction('Delete permanently?', 'This cannot be undone.', true))) e.preventDefault();
+  });
+
+  document.addEventListener('submit', async (e) => {
+    const f = e.target;
+    if (!f.matches('form[data-confirm]')) return;
+    e.preventDefault();
+    const msg = f.getAttribute('data-confirm') || 'Are you sure?';
+    const ok = await Swal.fire({
+      title: 'Please confirm',
+      text: msg,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545'
+    }).then(r => r.isConfirmed);
+    if (ok) f.submit();
+  });
+</script>

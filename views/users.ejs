@@ -1,0 +1,203 @@
+<%- include('partials/head', { title: 'Users', user }) %>
+
+<div class="container-xxl py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="m-0"><i class="bi bi-people me-2"></i>Users</h3>
+    <button class="btn btn-primary" id="btnAddUser">
+      <i class="bi bi-person-plus me-1"></i> Add user
+    </button>
+  </div>
+
+  <% if (message) { %><div class="alert alert-success"><%= message %></div><% } %>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <div class="table-responsive bg-white shadow-sm rounded">
+    <table id="usersTable" class="table table-striped table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:70px">No.</th>
+          <th>Username</th>
+          <th style="width:120px">Role</th>
+          <th style="width:120px">Status</th>
+          <th style="width:120px" class="text-center">Vouchers</th>
+          <th style="width:220px">Created</th>
+          <th style="width:320px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach((u, i) => { %>
+          <tr>
+            <td><%= i+1 %></td>
+            <td class="fw-semibold"><%= u.username %></td>
+            <td>
+              <% if (u.role === 'admin') { %>
+                <span class="badge bg-primary">admin</span>
+              <% } else { %>
+                <span class="badge bg-secondary">user</span>
+              <% } %>
+            </td>
+            <td>
+              <% if (u.active) { %>
+                <span class="badge bg-success">active</span>
+              <% } else { %>
+                <span class="badge bg-danger">inactive</span>
+              <% } %>
+            </td>
+            <td class="text-center"><span class="badge bg-info text-dark"><%= u.voucher_count %></span></td>
+            <td><%= new Date(u.created_at).toLocaleString() %></td>
+            <td>
+              <form method="POST" action="/users/<%= u.id %>/toggle-active" class="d-inline" data-confirm="<%= u.active ? 'Deactivate ' + u.username + '?' : 'Reactivate ' + u.username + '?' %>">
+                <button type="submit" class="btn btn-sm <%= u.active ? 'btn-outline-warning' : 'btn-outline-success' %>">
+                  <i class="bi <%= u.active ? 'bi-person-dash' : 'bi-person-check' %> me-1"></i>
+                  <%= u.active ? 'Deactivate' : 'Reactivate' %>
+                </button>
+              </form>
+
+              <button class="btn btn-sm btn-outline-primary btn-reset"
+                      data-id="<%= u.id %>"
+                      data-username="<%- u.username %>">
+                <i class="bi bi-key me-1"></i> Reset password
+              </button>
+
+              <% if (u.voucher_count == 0) { %>
+                <form method="POST" action="/users/<%= u.id %>/hard-delete" class="d-inline" data-confirm="Permanently delete <%= u.username %>? This cannot be undone.">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="bi bi-x-octagon me-1"></i> Hard delete
+                  </button>
+                </form>
+              <% } else { %>
+                <button class="btn btn-sm btn-outline-secondary" disabled
+                        data-bs-toggle="tooltip" data-bs-title="Has vouchers; cannot delete">
+                  <i class="bi bi-lock"></i> Delete
+                </button>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add user modal -->
+<div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" method="POST" action="/users" id="addForm">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Add user</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-control" placeholder="e.g. nueng" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password (min 6)</label>
+          <div class="input-group">
+            <input type="password" name="password" class="form-control" required minlength="6" id="addPass">
+            <button class="btn btn-outline-secondary" type="button" id="toggleAddPass"><i class="bi bi-eye"></i></button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Role</label>
+          <select name="role" class="form-select">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reset password modal -->
+<div class="modal fade" id="resetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" method="POST" id="resetForm">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key me-2"></i>Reset password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted" id="resetUserLabel"></div>
+        <label class="form-label">New password (min 6)</label>
+        <div class="input-group">
+          <input type="password" name="newPassword" class="form-control" required minlength="6" id="resetPass">
+          <button class="btn btn-outline-secondary" type="button" id="toggleResetPass"><i class="bi bi-eye"></i></button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Set password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+  const addModal  = new bootstrap.Modal(document.getElementById('addModal'));
+  const resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
+
+  document.getElementById('btnAddUser')?.addEventListener('click', () => {
+    const f = document.getElementById('addForm');
+    f.reset();
+    addModal.show();
+  });
+
+  document.getElementById('toggleAddPass')?.addEventListener('click', () => {
+    const i = document.getElementById('addPass');
+    i.type = i.type === 'password' ? 'text' : 'password';
+  });
+  document.getElementById('toggleResetPass')?.addEventListener('click', () => {
+    const i = document.getElementById('resetPass');
+    i.type = i.type === 'password' ? 'text' : 'password';
+  });
+
+  const tableEl = document.getElementById('usersTable');
+
+  tableEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-reset');
+    if (!btn || !tableEl.contains(btn)) return;
+    const id = btn.dataset.id;
+    const username = btn.dataset.username || '';
+    const form = document.getElementById('resetForm');
+    form.action = `/users/${id}/reset-password`;
+    document.getElementById('resetUserLabel').textContent = `User: ${username}`;
+    form.reset();
+    resetModal.show();
+  });
+
+  document.addEventListener('submit', async (e) => {
+    const f = e.target;
+    if (!f.matches('form[data-confirm]')) return;
+    e.preventDefault();
+    const msg = f.getAttribute('data-confirm') || 'Are you sure?';
+    const ok = await Swal.fire({
+      title: 'Please confirm',
+      text: msg,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545'
+    }).then(r => r.isConfirmed);
+    if (ok) f.submit();
+  });
+
+  if (window.simpleDatatables) {
+    new simpleDatatables.DataTable('#usersTable', {
+      perPage: 25,
+      perPageSelect: [10,25,50,100],
+      labels: { placeholder: 'Search...' },
+      columns: [
+        { select: 0, sortable: true,  searchable: false },
+        { select: -1, sortable: false, searchable: false }
+      ]
+    });
+  }
+</script>

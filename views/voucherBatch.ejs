@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @page { size: A5 landscape; margin: 8mm; }
+
+    /* Bookman Old Style (TTFs in /public/fonts) */
+    @font-face { font-family: 'BookmanOS'; src: url('/fonts/bookos.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: 'BookmanOS'; src: url('/fonts/bookosb.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'BookmanOS', 'Bookman Old Style', Georgia, serif;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      margin: 0;
+    }
+
+    .voucher { page-break-after: always; break-inside: avoid; }
+
+    /* Header (logo a little bigger) */
+    .header { text-align: center; margin-bottom: 2.2mm; }
+    .logo   { max-height: 17.5mm; max-width: 58mm; object-fit: contain; display: inline-block; } /* was 16mm */
+    .title  { font-weight: 700; font-size: 15.5px; letter-spacing: .4px; margin-top: 1mm; }
+    .title-line { height: 1.2px; background: #000; width: 58%; margin: 1.2mm auto 0; }
+
+    .meta { display: flex; justify-content: space-between; margin: 2.2mm 0 3.2mm; font-size: 12.5px; }
+
+    /* Table: slightly larger row height via vertical padding (was 1mm) */
+    .table-wrap { position: relative; margin-bottom: 6mm; }
+    .items { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+    .items th, .items td {
+      border: 1px solid #000;
+      padding: 1.3mm 2mm;        /* increased vertical padding for taller rows */
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    .items thead th { background: #dfe3e7; }
+    .center { text-align: center; }
+    .right  { text-align: right; }
+    .bold   { font-weight: 700; }
+
+    /* Diagonal overlay (precise geometry; thickness OK) */
+    .diag-block {
+      position: absolute;
+      display: none;
+      overflow: hidden;          /* clip within amount area */
+      pointer-events: none;
+      z-index: 3;
+    }
+    .diag-block svg { width: 100%; height: 100%; display: block; }
+    .diag-block line { stroke: #000; stroke-width: 2; } /* keep thickness */
+
+    /* Signatures block */
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8mm 16mm;
+      font-size: 12px;
+      break-inside: avoid; page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+  <% groups.forEach(g => {
+       const MAX_ROWS = 8; // still 8 rows
+       const total = g.entries.reduce((s,e)=> s + (e.amount || 0), 0);
+
+       // Diagonal start rule:
+       // 1 data row -> start on row 2; otherwise start after the last data row.
+       const dataRows = g.entries.length;
+       const diagStartIndex = Math.min(MAX_ROWS - 1, Math.max(1, dataRows));
+       const rowsLeft = Math.max(0, MAX_ROWS - diagStartIndex);
+  %>
+  <div class="voucher">
+    <div class="header">
+      <% if (g.logoDataUrl) { %><img class="logo" src="<%= g.logoDataUrl %>" alt="logo" /><% } %>
+      <div class="title">PETTY CASH VOUCHER</div>
+      <div class="title-line"></div>
+    </div>
+
+    <div class="meta">
+      <div>Pay To: <strong><%= g.payTo %></strong></div>
+      <div>Date: <%= g.dateStr %></div>
+    </div>
+
+    <div class="table-wrap" data-start="<%= diagStartIndex %>" data-rowsleft="<%= rowsLeft %>">
+      <table class="items">
+        <thead>
+        <tr>
+          <th style="width:7%">NO.</th>
+          <th style="width:25%">Categories</th>  <!-- narrowed a little (was 27%) -->
+          <th>PARTICULARS</th>
+          <th style="width:18%">AMOUNT</th>     <!-- amount width unchanged -->
+        </tr>
+        </thead>
+        <tbody>
+        <% for (let i = 0; i < MAX_ROWS; i++) { %>
+          <% if (i < g.entries.length) { const it = g.entries[i]; %>
+            <tr>
+              <td class="center"><%= i+1 %></td>
+              <td><%= it.category %></td>
+              <td><%= it.description %></td>
+              <td class="right"><%= (it.amount || 0).toFixed(2) %></td>
+            </tr>
+          <% } else { %>
+            <tr>
+              <td>&nbsp;</td><td></td><td></td><td></td>
+            </tr>
+          <% } %>
+        <% } %>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" class="right bold">TOTAL</td>
+            <td class="right bold"><%= total.toFixed(2) %></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <% if (rowsLeft > 0) { %>
+        <!-- SVG diagonal line; we’ll position this block precisely via JS -->
+        <div class="diag-block">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <!-- start at top-right, end at bottom-left with tiny insets -->
+            <line x1="99" y1="1" x2="1" y2="99"></line>
+          </svg>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="signatures">
+      <div>Approved By ..............................</div>
+      <div>Request By ..............................</div>
+      <div>Paid By .................................</div>
+      <div>Received By .............................</div>
+    </div>
+  </div>
+  <% }) %>
+
+  <script>
+    // Precise positioning for the diagonal overlay
+    (function() {
+      function draw() {
+        document.querySelectorAll('.table-wrap').forEach(function(wrap) {
+          var rowsLeft = parseInt(wrap.dataset.rowsleft || '0', 10);
+          if (!rowsLeft) return;
+
+          var startIndex = parseInt(wrap.dataset.start || '0', 10);
+          var table = wrap.querySelector('table.items');
+          var bodyRows = table.querySelectorAll('tbody tr');
+          if (startIndex >= bodyRows.length) return;
+
+          var startCell = bodyRows[startIndex].querySelector('td:last-child');         // first empty amount cell
+          var endCell   = bodyRows[bodyRows.length - 1].querySelector('td:last-child'); // last body amount cell
+          var block     = wrap.querySelector('.diag-block');
+
+          var wr = wrap.getBoundingClientRect();
+          var sr = startCell.getBoundingClientRect();
+          var er = endCell.getBoundingClientRect();
+
+          // Slight inset so the line doesn’t touch borders too hard
+          var inset = 0.8; // px
+
+          block.style.top    = (sr.top   - wr.top + inset) + 'px';
+          block.style.left   = (sr.left  - wr.left + inset) + 'px';
+          block.style.width  = (sr.width - inset*2) + 'px';
+          block.style.height = (er.bottom - sr.top - inset*2) + 'px';
+          block.style.display = 'block';
+        });
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => requestAnimationFrame(draw));
+      } else {
+        window.addEventListener('load', () => requestAnimationFrame(draw));
+      }
+    })();
+  </script>
+</body>
+</html>

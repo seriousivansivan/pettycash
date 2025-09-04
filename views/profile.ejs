@@ -1,0 +1,162 @@
+<%- include('partials/head', { title: 'My Profile', user }) %>
+
+<div class="container-xxl py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="m-0"><i class="bi bi-person-gear me-2"></i>My Profile</h3>
+    <span class="text-muted">Logged in as <strong><%= user.name %></strong></span>
+  </div>
+
+  <% if (message) { %><div class="alert alert-success"><%= message %></div><% } %>
+  <% if (error)   { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <% if (user.avatar_name) { %>
+              <img src="/avatars/<%= user.avatar_name %>" alt="avatar"
+                   class="rounded-circle border me-3" style="width:72px;height:72px;object-fit:cover;">
+            <% } else { %>
+              <div class="rounded-circle d-inline-flex align-items-center justify-content-center me-3 border"
+                   style="width:72px;height:72px;background:#e9ecef;font-weight:700;font-size:26px;">
+                <%= (user.name || '?').slice(0,1).toUpperCase() %>
+              </div>
+            <% } %>
+            <div>
+              <div class="fw-bold fs-5 mb-1"><%= user.name %></div>
+              <div>
+                <% if (user.role === 'admin') { %>
+                  <span class="badge bg-primary">admin</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">user</span>
+                <% } %>
+              </div>
+            </div>
+          </div>
+
+          <form method="POST" action="/profile/avatar" enctype="multipart/form-data" id="avatarForm">
+            <label class="form-label">Profile image (PNG/JPG/WebP, up to 5MB)</label>
+            <input type="file" name="avatar" id="avatarInput" class="form-control" accept="image/png,image/jpeg,image/webp">
+            <div class="text-center mt-2">
+              <img id="avatarPreview" src="" alt="" class="img-fluid rounded" style="max-height:180px; display:none;">
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="submit" class="btn btn-primary" id="avatarSaveBtn" disabled>
+                <i class="bi bi-upload"></i> Save image
+              </button>
+              <button type="button" class="btn btn-outline-secondary" id="avatarCancelBtn" disabled>Cancel</button>
+              <form method="POST" action="/profile/avatar/delete" class="d-inline" id="avatarRemoveForm">
+                <button type="submit" class="btn btn-outline-danger" <%= user.avatar_name ? '' : 'disabled' %>>
+                  <i class="bi bi-x-circle"></i> Remove
+                </button>
+              </form>
+            </div>
+            <div class="form-text">Tip: square images look best.</div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">
+          <strong>Change password</strong>
+        </div>
+        <form class="card-body" method="POST" action="/profile/password" id="pwdForm" novalidate>
+          <div class="mb-3">
+            <label class="form-label">Current password</label>
+            <div class="input-group">
+              <input type="password" name="currentPassword" class="form-control" required id="curPwd" autocomplete="current-password">
+              <button class="btn btn-outline-secondary" type="button" data-toggle="pw" data-target="#curPwd"><i class="bi bi-eye"></i></button>
+            </div>
+            <div class="form-text text-warning d-none" id="capsCur">Caps Lock is ON</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">New password (min 6)</label>
+            <div class="input-group">
+              <input type="password" name="newPassword" class="form-control" required minlength="6" id="newPwd" autocomplete="new-password">
+              <button class="btn btn-outline-secondary" type="button" data-toggle="pw" data-target="#newPwd"><i class="bi bi-eye"></i></button>
+            </div>
+            <div class="progress mt-2" style="height:8px;">
+              <div id="strengthBar" class="progress-bar bg-danger" style="width:0%"></div>
+            </div>
+            <div id="strengthText" class="form-text">Use 6+ chars with a mix of letters, numbers, and symbols.</div>
+            <div class="form-text text-warning d-none" id="capsNew">Caps Lock is ON</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Confirm new password</label>
+            <div class="input-group">
+              <input type="password" name="confirmPassword" class="form-control" required id="confPwd" autocomplete="new-password">
+              <button class="btn btn-outline-secondary" type="button" data-toggle="pw" data-target="#confPwd"><i class="bi bi-eye"></i></button>
+            </div>
+            <div class="invalid-feedback">Passwords do not match.</div>
+            <div class="form-text text-warning d-none" id="capsConf">Caps Lock is ON</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" id="saveBtn">
+              <i class="bi bi-shield-lock me-1"></i> Save password
+            </button>
+            <button type="reset" class="btn btn-outline-secondary">Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+  function togglePw(btn){
+    const target = document.querySelector(btn.getAttribute('data-target'));
+    if(!target) return;
+    target.type = target.type === 'password' ? 'text' : 'password';
+    const icon = btn.querySelector('i');
+    if(icon){ icon.classList.toggle('bi-eye'); icon.classList.toggle('bi-eye-slash'); }
+  }
+  document.querySelectorAll('[data-toggle="pw"]').forEach(b => b.addEventListener('click', () => togglePw(b)));
+
+  function pwdStrength(p){ let s=0; if(p.length>=6)s++; if(/[A-Z]/.test(p)&&/[a-z]/.test(p))s++; if(/\d/.test(p))s++; if(/[^A-Za-z0-9]/.test(p))s++; return Math.min(s,4); }
+  const newPwd=document.getElementById('newPwd'), confPwd=document.getElementById('confPwd'), strengthBar=document.getElementById('strengthBar'), strengthText=document.getElementById('strengthText');
+  function updateStrength(){ const s=pwdStrength(newPwd.value), w=[0,25,50,75,100][s]; strengthBar.style.width=w+'%'; strengthBar.className='progress-bar '+['bg-danger','bg-warning','bg-info','bg-success','bg-success'][s]; const labels=['Too weak','Weak','Okay','Good','Strong']; strengthText.textContent=labels[s]+' — use 6+ chars with mix of letters/numbers/symbols.'; }
+  function checkMatch(){ const ok=confPwd.value&&newPwd.value===confPwd.value; confPwd.classList.toggle('is-invalid',!ok&&confPwd.value.length>0); return ok; }
+  newPwd.addEventListener('input',()=>{updateStrength();checkMatch();}); confPwd.addEventListener('input',checkMatch); updateStrength();
+  function capsIndicator(input, el){ input.addEventListener('keydown',e=>{ el.classList.toggle('d-none',!e.getModifierState||!e.getModifierState('CapsLock')); }); input.addEventListener('keyup',e=>{ el.classList.toggle('d-none',!e.getModifierState||!e.getModifierState('CapsLock')); }); input.addEventListener('focus',()=>{ el.classList.add('d-none'); }); }
+  capsIndicator(document.getElementById('curPwd'),document.getElementById('capsCur'));
+  capsIndicator(document.getElementById('newPwd'),document.getElementById('capsNew'));
+  capsIndicator(document.getElementById('confPwd'),document.getElementById('capsConf'));
+  document.getElementById('pwdForm').addEventListener('submit',(e)=>{ if(newPwd.value.length<6||newPwd.value!==confPwd.value){ e.preventDefault(); Swal.fire({title:'Fix errors',text:'Ensure the new password is at least 6 characters and both passwords match.',icon:'warning'});} });
+
+  const input = document.getElementById('avatarInput');
+  const preview = document.getElementById('avatarPreview');
+  const saveBtn = document.getElementById('avatarSaveBtn');
+  const cancelBtn = document.getElementById('avatarCancelBtn');
+  const removeForm = document.getElementById('avatarRemoveForm');
+
+  function resetAvatarUI(){ input.value=''; preview.src=''; preview.style.display='none'; saveBtn.disabled=true; cancelBtn.disabled=true; }
+  input.addEventListener('change', ()=>{
+    const f = input.files && input.files[0];
+    if(!f){ resetAvatarUI(); return; }
+    if(!['image/png','image/jpeg','image/webp'].includes(f.type)){ Swal.fire('Invalid file','Only PNG/JPG/WebP allowed','warning'); resetAvatarUI(); return; }
+    if(f.size > 5*1024*1024){ Swal.fire('File too large','Max 5MB','warning'); resetAvatarUI(); return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{ preview.src = reader.result; preview.style.display='block'; saveBtn.disabled=false; cancelBtn.disabled=false; };
+    reader.readAsDataURL(f);
+  });
+  cancelBtn.addEventListener('click', resetAvatarUI);
+  removeForm?.addEventListener('submit', async (e)=>{
+    const ok = await Swal.fire({ title:'Remove image?', text:'Your avatar will be cleared.', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc3545' }).then(r=>r.isConfirmed);
+    if(!ok) e.preventDefault();
+  });
+
+  (function showFlash(){
+    const ok = <%= JSON.stringify(!!message) %>;
+    const err = <%= JSON.stringify(!!error) %>;
+    if (ok)   Swal.fire({ icon:'success', title:'Done', text:<%- JSON.stringify(message || '') %> });
+    if (err)  Swal.fire({ icon:'error', title:'Error', text:<%- JSON.stringify(error || '') %> });
+  })();
+</script>

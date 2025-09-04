@@ -1,0 +1,302 @@
+<%- include('partials/head', { title: 'Voucher Form', user }) %>
+<style> /* Wider working area for this page only */ .container-xxl { max-width: 1680px; } @media (min-width: 1800px) { .container-xxl { max-width: 1760px; } } /* Keep cells aligned and ensure inputs don’t get squeezed */ #dataTable th, #dataTable td { vertical-align: middle; } /* Column minimum widths (match your column order) */ /* No. */ #dataTable th:nth-child(1), #dataTable td:nth-child(1) { min-width: 60px; } /* Company */ #dataTable th:nth-child(2), #dataTable td:nth-child(2) { min-width: 260px; } /* Category */ #dataTable th:nth-child(3), #dataTable td:nth-child(3) { min-width: 260px; } /* Description (most space) */ #dataTable th:nth-child(4), #dataTable td:nth-child(4) { min-width: 540px; } /* Amount */ #dataTable th:nth-child(5), #dataTable td:nth-child(5) { min-width: 150px; } /* Pay To */ #dataTable th:nth-child(6), #dataTable td:nth-child(6) { min-width: 240px; } /* Date */ #dataTable th:nth-child(7), #dataTable td:nth-child(7) { min-width: 190px; } /* Separate? */ #dataTable th:nth-child(8), #dataTable td:nth-child(8) { min-width: 120px; text-align: center; } /* Remove */ #dataTable th:nth-child(9), #dataTable td:nth-child(9) { min-width: 90px; } /* Let Description wrap if needed (others stay single-line) */ #dataTable td:nth-child(4) .form-control { white-space: normal; } </style>
+<div class="container-xxl py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="m-0"><i class="bi bi-ui-checks-grid me-2"></i>Create Vouchers</h3>
+    <div class="text-muted small">Each group = Company + Pay To + Date, unless “Separate” is checked</div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <button class="btn btn-outline-secondary" id="refreshCompanies"><i class="bi bi-arrow-clockwise me-1"></i>Refresh companies</button>
+    <button class="btn btn-outline-primary" id="add"><i class="bi bi-plus-circle me-1"></i>Add row</button>
+    <button class="btn btn-outline-warning" id="clear"><i class="bi bi-eraser me-1"></i>Clear all</button>
+    <button class="btn btn-primary ms-auto" id="generate">
+      <i class="bi bi-filetype-pdf me-1"></i>Generate A5 PDF
+    </button>
+  </div>
+
+  <div class="table-responsive bg-white shadow-sm rounded">
+    <table id="dataTable" class="table table-striped table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:60px">No.</th>
+          <th style="width:220px">Company</th>
+          <th style="width:200px">Category</th>
+          <th>Description</th>
+          <th style="width:140px" class="text-end">Amount</th>
+          <th style="width:220px">Pay To</th>
+          <th style="width:160px">Date</th>
+          <th style="width:140px" class="text-center">Separate?</th>
+          <th style="width:70px">Remove</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr>
+          <td class="row-no">1</td>
+          <td>
+            <select name="company" class="form-select companySel" required>
+              <option value="">Loading...</option>
+            </select>
+          </td>
+          <td>
+            <input type="text" name="category" class="form-control cat-input" placeholder="Transportation" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          </td>
+          <td>
+            <input type="text" name="description" class="form-control" placeholder="Fare to ..." required>
+          </td>
+          <td>
+            <input type="number" name="amount" class="form-control text-end" min="0" step="0.01" required>
+          </td>
+          <td>
+            <input type="text" name="payTo" class="form-control" placeholder="Ms. Nueng…" required>
+          </td>
+          <td>
+            <input type="date" name="date" class="form-control" required>
+          </td>
+          <td class="text-center">
+            <input type="checkbox" name="separate" class="form-check-input">
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-danger remove"><i class="bi bi-x-lg"></i></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-2 text-muted small">
+    Logos come from /logos/CompanyName.png. Admin can manage companies and logos in the Companies page.
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+  let companyOptionsHTML = '<option value="">-- select company --</option>';
+
+  async function loadCompanies() {
+    try {
+      const res = await fetch('/api/companies', { cache: 'no-store' });
+      const data = await res.json();
+      const names = data.names || [];
+      companyOptionsHTML = '<option value="">-- select company --</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+      document.querySelectorAll('.companySel').forEach(sel => sel.innerHTML = companyOptionsHTML);
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Could not load companies', 'Please refresh and try again', 'error');
+    }
+  }
+
+  document.getElementById('refreshCompanies').addEventListener('click', (e) => {
+    e.preventDefault();
+    loadCompanies();
+  });
+
+  const tbody = document.getElementById('rows');
+
+  function renumber() {
+    document.querySelectorAll('#rows .row-no').forEach((td, i) => td.textContent = i + 1);
+  }
+
+  document.getElementById('clear').addEventListener('click', (e) => {
+    e.preventDefault();
+    Swal.fire({
+      title: 'Clear all rows?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Clear'
+    }).then(r => {
+      if (!r.isConfirmed) return;
+      tbody.innerHTML = `
+        <tr>
+          <td class="row-no">1</td>
+          <td><select name="company" class="form-select companySel" required>${companyOptionsHTML}</select></td>
+          <td><input type="text" name="category" class="form-control cat-input" autocomplete="off" autocapitalize="off" spellcheck="false" required></td>
+          <td><input type="text" name="description" class="form-control" required></td>
+          <td><input type="number" name="amount" class="form-control text-end" min="0" step="0.01" required></td>
+          <td><input type="text" name="payTo" class="form-control" required></td>
+          <td><input type="date" name="date" class="form-control" required></td>
+          <td class="text-center"><input type="checkbox" name="separate" class="form-check-input"></td>
+          <td><button class="btn btn-sm btn-outline-danger remove"><i class="bi bi-x-lg"></i></button></td>
+        </tr>`;
+      wireCategoryInputs();
+      setDefaultDates();
+    });
+  });
+
+  document.getElementById('add').addEventListener('click', (e) => {
+    e.preventDefault();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-no"></td>
+      <td><select name="company" class="form-select companySel" required>${companyOptionsHTML}</select></td>
+      <td><input type="text" name="category" class="form-control cat-input" autocomplete="off" autocapitalize="off" spellcheck="false" required></td>
+      <td><input type="text" name="description" class="form-control" required></td>
+      <td><input type="number" name="amount" class="form-control text-end" min="0" step="0.01" required></td>
+      <td><input type="text" name="payTo" class="form-control" required></td>
+      <td><input type="date" name="date" class="form-control" required></td>
+      <td class="text-center"><input type="checkbox" name="separate" class="form-check-input"></td>
+      <td><button class="btn btn-sm btn-outline-danger remove"><i class="bi bi-x-lg"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+    renumber();
+    wireCategoryInputs();
+    setDefaultDates(tr);
+  });
+
+  tbody.addEventListener('click', (e) => {
+    if (e.target.closest('.remove')) {
+      e.preventDefault();
+      const tr = e.target.closest('tr');
+      tr.parentNode.removeChild(tr);
+      renumber();
+    }
+  });
+
+  function collectRows() {
+    const rows = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+      const obj = {
+        company:     tr.querySelector('select[name="company"]').value.trim(),
+        category:    tr.querySelector('input[name="category"]').value.trim(),
+        description: tr.querySelector('input[name="description"]').value.trim(),
+        amount:      tr.querySelector('input[name="amount"]').value,
+        payTo:       tr.querySelector('input[name="payTo"]').value.trim(),
+        date:        tr.querySelector('input[name="date"]').value,
+        separate:    tr.querySelector('input[name="separate"]').checked
+      };
+      if (obj.company || obj.category || obj.description || obj.amount || obj.payTo || obj.date) {
+        rows.push(obj);
+      }
+    });
+    return rows;
+  }
+
+  function validateRows(rows) {
+    let ok = true;
+    tbody.querySelectorAll('tr').forEach(tr => tr.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid')));
+    rows.forEach((r, i) => {
+      const tr = tbody.querySelectorAll('tr')[i];
+      if (!r.company)     { tr.querySelector('select[name="company"]').classList.add('is-invalid'); ok = false; }
+      if (!r.category)    { tr.querySelector('input[name="category"]').classList.add('is-invalid'); ok = false; }
+      if (!r.description) { tr.querySelector('input[name="description"]').classList.add('is-invalid'); ok = false; }
+      if (!r.amount || Number(r.amount) < 0) { tr.querySelector('input[name="amount"]').classList.add('is-invalid'); ok = false; }
+      if (!r.payTo)       { tr.querySelector('input[name="payTo"]').classList.add('is-invalid'); ok = false; }
+      if (!r.date)        { tr.querySelector('input[name="date"]').classList.add('is-invalid'); ok = false; }
+    });
+    return ok;
+  }
+
+  const CATEGORIES = [
+    'Office Supplies',
+    'Equipment & Furniture',
+    'Technology & Electronics',
+    'Maintenance & Cleaning',
+    'Renovation & Repairs',
+    'Transportation',
+    'Utilities',
+    'Pantry & Refreshments',
+    'Software',
+    'Services',
+    'Staff Welfare & HR Expenses',
+    'Administrative',
+    'Legal Expenses',
+    'Communication',
+    'Security & Safety'
+  ];
+  const CAT_ITEMS = CATEGORIES.map(label => ({ label, norm: label.toLowerCase().replace(/[^a-z0-9]/g, '') }));
+  function normalize(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+  function findSuggestion(typed){
+    const n = normalize(typed);
+    if(!n) return null;
+    let hit = CAT_ITEMS.find(it => it.norm.startsWith(n));
+    if(!hit) hit = CAT_ITEMS.find(it => it.norm.includes(n));
+    return hit ? hit.label : null;
+  }
+  function attachCategoryAutocomplete(input){
+    input.setAttribute('autocomplete','off');
+    input.setAttribute('autocorrect','off');
+    input.setAttribute('autocapitalize','off');
+    input.setAttribute('spellcheck','false');
+    let internal = false;
+    let suppress = false;
+    function suggest(){
+      if(internal || suppress) return;
+      const selStart = input.selectionStart ?? input.value.length;
+      const selEnd   = input.selectionEnd ?? input.value.length;
+      if (selEnd !== input.value.length) return;
+      const userPart = input.value.slice(0, selStart);
+      if (userPart.length < 2) return;
+      const suggestion = findSuggestion(userPart);
+      if(!suggestion || suggestion === input.value) return;
+      internal = true;
+      const prefixLen = userPart.length;
+      input.value = suggestion;
+      requestAnimationFrame(()=>{ try{ input.setSelectionRange(prefixLen, suggestion.length); }catch{} internal = false; });
+    }
+    input.addEventListener('input', (e)=>{
+      if((e && e.inputType && e.inputType.startsWith('delete')) || suppress){ suppress = false; return; }
+      suggest();
+    });
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Backspace' || e.key==='Delete'){ suppress = true; return; }
+      if(e.key==='Tab' || e.key==='Enter' || e.key==='ArrowRight'){
+        const start = input.selectionStart ?? 0;
+        const end   = input.selectionEnd ?? 0;
+        if(end > start){
+          e.preventDefault();
+          requestAnimationFrame(()=>{ try{ input.setSelectionRange(end,end); }catch{} });
+        }
+      }
+    });
+  }
+  function wireCategoryInputs(){
+    document.querySelectorAll('input.cat-input').forEach(inp=>{
+      if(!inp.__acBound){ attachCategoryAutocomplete(inp); inp.__acBound = true; }
+    });
+  }
+
+  function setDefaultDates(scope){
+    const today = new Date().toISOString().slice(0,10);
+    (scope ? scope.querySelectorAll('input[name="date"]') : document.querySelectorAll('input[name="date"]'))
+      .forEach(d => { if(!d.value) d.value = today; });
+  }
+
+  document.getElementById('generate').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const rows = collectRows();
+    if (rows.length === 0) { Swal.fire('Add at least one row', '', 'info'); return; }
+    if (!validateRows(rows)) { Swal.fire('Please complete highlighted fields', '', 'warning'); return; }
+
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+
+    try {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows })
+      });
+      if (!res.ok) { throw new Error('Failed to generate PDF'); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'pettycash.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', err.message || 'Failed to generate PDF', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  });
+
+  function init() {
+    loadCompanies();
+    wireCategoryInputs();
+    setDefaultDates();
+    renumber();
+  }
+  init();
+</script>

@@ -1,0 +1,16 @@
+  <footer class="mt-auto border-top bg-body-tertiary py-3">
+    <div class="container-xxl d-flex align-items-center justify-content-between gap-2">
+      <span class="text-muted small">
+        © <%= new Date().getFullYear() %> <%= (typeof appName !== 'undefined' ? appName : 'Petty Cash') %>. All rights reserved.
+      </span>
+      <% if (typeof appVersion !== 'undefined' && appVersion) { %>
+        <span class="text-muted small">v<%= appVersion %></span>
+      <% } %>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/simple-datatables@9.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>

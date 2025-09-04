@@ -1,0 +1,152 @@
+<%- include('partials/head', { title: 'Dashboard', user }) %>
+
+<div class="container-xxl py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="m-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h3>
+    <span class="text-muted">Logged in as <strong><%= user.name %></strong> (admin)</span>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+      <div class="card text-white bg-info h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-people fs-1 me-3"></i>
+            <div>
+              <div class="fs-2 fw-bold"><%= usersCount || 0 %></div>
+              <div class="text-uppercase small">Users</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer text-end">
+          <a class="text-white text-decoration-none stretched-link" href="/users">view all →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card text-white bg-primary h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-receipt fs-1 me-3"></i>
+            <div>
+              <div class="fs-2 fw-bold"><%= historiesCount || 0 %></div>
+              <div class="text-uppercase small">Histories</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer text-end">
+          <a class="text-white text-decoration-none stretched-link" href="/history">view all →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card text-white bg-success h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-buildings fs-1 me-3"></i>
+            <div>
+              <div class="fs-2 fw-bold"><%= companiesCount || 0 %></div>
+              <div class="text-uppercase small">Companies</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer text-end">
+          <a class="text-white text-decoration-none stretched-link" href="/companies">view all →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card text-white bg-warning h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-trash fs-1 me-3"></i>
+            <div>
+              <div class="fs-2 fw-bold"><%= deletedHistoriesCount || 0 %></div>
+              <div class="text-uppercase small">Deleted</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer text-end">
+          <a class="text-white text-decoration-none stretched-link" href="/history/deleted">view all →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-sm rounded">
+    <div class="px-3 py-2 border-bottom">
+      <h5 class="m-0"><i class="bi bi-activity me-2"></i>Recent Activity</h5>
+      <small class="text-muted">Last 15 actions (create/delete/restore/hard delete). Downloads are not logged.</small>
+    </div>
+
+    <div class="table-responsive">
+      <table id="recentTable" class="table table-striped table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:34%">Date</th>
+            <th style="width:16%">Admin</th>
+            <th style="width:12%">Action</th>
+            <th>Voucher</th>
+            <th style="width:120px">PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!recent || recent.length === 0) { %>
+            <tr><td colspan="5" class="text-center py-4 text-muted">No recent activity</td></tr>
+          <% } else { %>
+            <% recent.forEach(r => { 
+               const actionClass = r.action === 'create' ? 'success' :
+                                   r.action === 'restore' ? 'info' :
+                                   r.action === 'delete' ? 'warning' : 'danger';
+            %>
+              <tr>
+                <td><%= r.created_at_th %></td>
+                <td><%= r.actor || '' %></td>
+                <td><span class="badge bg-<%= actionClass %> text-uppercase"><%= r.action %></span></td>
+                <td>
+                  <% if (r.company) { %>
+                    <strong><%= r.company %></strong> → <%= r.pay_to %>
+                    (<%= r.date_display %>) — Total: <%= r.total ? Number(r.total).toFixed(2) : '0.00' %>
+                    <% if (r.v_deleted) { %> <span class="text-muted">(deleted)</span> <% } %>
+                  <% } else if (r.noteObj && r.noteObj.voucherId) { %>
+                    Voucher #<%= r.noteObj.voucherId %> <span class="text-muted">(permanently deleted)</span>
+                  <% } else { %>
+                    Voucher permanently deleted
+                  <% } %>
+                </td>
+                <td>
+                  <% if (r.v_id && r.action !== 'hard_delete') { %>
+                    <a class="btn btn-sm btn-outline-primary" href="/voucher/<%= r.v_id %>/pdf">
+                      <i class="bi bi-download"></i> Download
+                    </a>
+                  <% } else { %>
+                    <span class="text-muted">N/A</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+  if (window.simpleDatatables) {
+    new simpleDatatables.DataTable('#recentTable', {
+      perPage: 15,
+      searchable: true,
+      fixedHeight: true,
+      labels: { placeholder: 'Search...' },
+      columns: [
+        { select: 4, sortable: false, searchable: false }
+      ]
+    });
+  }
+</script>
